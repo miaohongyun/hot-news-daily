@@ -1,1 +1,164 @@
-_HTML_CONTENT_PLACEHOLDER_
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>全网热点汇总 · 100 条</title>
+  <style>
+    /* 全局样式 */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: #f5f6f8; color: #1f2329;
+      font: 15px/1.6 -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: #8a8f99; font-size: 13px; margin-bottom: 16px; }
+    /* 平台筛选栏 */
+    .bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; position: sticky; top: 0; padding: 10px 0; background: #f5f6f8; z-index: 9; }
+    .bar button {
+      border: 1px solid #e2e5ea; background: #fff; border-radius: 999px;
+      padding: 5px 14px; font-size: 13px; cursor: pointer; color: #4b5058;
+    }
+    .bar button.on { background: #1f2329; border-color: #1f2329; color: #fff; }
+    /* 条目卡片 */
+    .list { display: flex; flex-direction: column; gap: 8px; }
+    .item {
+      display: flex; align-items: center; gap: 12px; background: #fff;
+      border: 1px solid #eceef1; border-radius: 10px; padding: 10px 14px;
+    }
+    .rank { width: 26px; color: #b4b9c2; font-size: 13px; text-align: right; flex: none; }
+    .item a { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-decoration: none; color: inherit; }
+    .plat {
+      flex: none; font-size: 12px; color: #fff; background: var(--c);
+      border-radius: 4px; padding: 1px 7px;
+    }
+    .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item a:hover .title { color: #1e80ff; text-decoration: underline; }
+    .heat { flex: none; font-size: 12px; color: #9aa0aa; }
+    /* 复制链接按钮 */
+    .copy {
+      flex: none; border: 1px solid #e2e5ea; background: #fff; border-radius: 6px;
+      font-size: 12px; color: #6b7280; padding: 2px 8px; cursor: pointer;
+    }
+    .copy:hover { border-color: #1e80ff; color: #1e80ff; }
+    /* 预览环境提示条 */
+    .tip {
+      display: none; background: #fff7e6; border: 1px solid #ffe7ba; color: #ad6800;
+      border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 14px;
+    }
+    /* 复制成功 toast */
+    .toast {
+      position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+      background: rgba(31,35,41,.92); color: #fff; padding: 9px 18px;
+      border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none;
+      transition: opacity .25s; z-index: 99;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>全网热点汇总 · 100 条</h1>
+    <div class="sub">数据时间 2026-10-10 · 已跨平台去重 · 点击标题直达原链接 · 不含抖音/B站等视频站</div>
+    <div class="tip" id="tip">检测到当前在内嵌预览（iframe）中打开，外链跳转会被拦截：点击标题会自动<b>复制链接</b>，请粘贴到浏览器打开；或直接用浏览器访问本页地址，即可直接点击跳转。</div>
+    <div class="bar" id="bar"></div>
+    <div class="list" id="list"></div>
+  </div>
+  <script src="data.js"></script>
+  <script>
+    // 平台配色
+    const PLAT_COLOR = {
+      '知乎': '#0084ff', '微博': '#ff8200', '百度': '#2932e7', '贴吧': '#4a8cf7',
+      '虎嗅': '#1a1a1a', '虎扑': '#c5362f', '掘金': '#1e80ff', '小红书': '#ff2442', '雪球': '#e74c3c'
+    };
+    const items = window.HOT_DATA || [];
+
+    // 渲染筛选按钮
+    const bar = document.getElementById('bar');
+    const counts = {};
+    items.forEach(it => counts[it.p] = (counts[it.p] || 0) + 1);
+    let btns = `<button class="on" data-f="all">全部 ${items.length}</button>`;
+    Object.keys(counts).forEach(p => {
+      btns += `<button data-f="${p}">${p} ${counts[p]}</button>`;
+    });
+    bar.innerHTML = btns;
+
+    // 渲染条目列表
+    const list = document.getElementById('list');
+    list.innerHTML = items.map((it, i) => {
+      const t = it.t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      const u = it.u.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+      return `<div class="item" data-p="${it.p}">
+        <span class="rank">${i + 1}</span>
+        <a href="${u}" target="_blank" rel="noopener noreferrer">
+          <span class="plat" style="--c:${PLAT_COLOR[it.p] || '#666'}">${it.p}</span>
+          <span class="title">${t}</span>
+        </a>
+        <button class="copy" type="button">复制</button>
+      </div>`;
+    }).join('\n');
+
+    // 平台筛选逻辑
+    bar.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-f]');
+      if (!btn) return;
+      bar.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      const f = btn.dataset.f;
+      document.querySelectorAll('.item').forEach(el => {
+        el.style.display = (f === 'all' || el.dataset.p === f) ? '' : 'none';
+      });
+    });
+
+    // 预览沙箱环境检测：iframe 中外链会被拦截，改为复制链接兜底
+    const inPreview = window.self !== window.top;
+    if (inPreview) document.getElementById('tip').style.display = 'block';
+
+    // 复制到剪贴板并弹出提示
+    async function copyUrl(url) {
+      let ok = false;
+      try { await navigator.clipboard.writeText(url); ok = true; } catch (e) {}
+      if (!ok) {
+        // 降级方案：剪贴板 API 不可用时用临时 textarea
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        try { ok = document.execCommand('copy'); } catch (e) {}
+        ta.remove();
+      }
+      showToast(ok ? '链接已复制，请粘贴到浏览器打开' : '复制失败，请手动复制：' + url);
+    }
+
+    let toastTimer;
+    function showToast(msg) {
+      let el = document.querySelector('.toast');
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'toast';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+    }
+
+    // 点击事件委托：复制按钮复制链接；预览环境中点击标题也转为复制
+    list.addEventListener('click', (e) => {
+      const copyBtn = e.target.closest('.copy');
+      if (copyBtn) {
+        e.preventDefault();
+        copyUrl(copyBtn.closest('.item').querySelector('a').href);
+        return;
+      }
+      const a = e.target.closest('a[href]');
+      if (a && inPreview) {
+        e.preventDefault();
+        copyUrl(a.href);
+      }
+    });
+  </script>
+</body>
+</html>
